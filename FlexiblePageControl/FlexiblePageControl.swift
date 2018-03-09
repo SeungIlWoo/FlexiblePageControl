@@ -40,9 +40,9 @@ public class FlexiblePageControl: UIView {
 
     // Recommended displayCount is 5 or more.
 
-    public var displayCount: Int = 7 {
+    public var displayCount: Int = 6 {
         didSet {
-            canScroll = (numberOfPages > displayCount)
+            canScroll = numberOfPages > scrollableCount
             update()
         }
     }
@@ -105,7 +105,7 @@ public class FlexiblePageControl: UIView {
     public override func layoutSubviews() {
 
         super.layoutSubviews()
-        
+
         scrollView.center = CGPoint(x: bounds.width/2, y: bounds.height/2)
     }
 
@@ -132,11 +132,15 @@ public class FlexiblePageControl: UIView {
 
     private var canScroll: Bool = false
 
+    private var scrollableCount: Int = 5
+
+    private var sideMarginCount: Int = 2
+
     private var itemSize: CGFloat {
 
         return dotSize + dotSpace
     }
-    
+
     private var items:[ItemView] = [ItemView]()
 
     private func setup() {
@@ -153,7 +157,9 @@ public class FlexiblePageControl: UIView {
     private func update() {
 
         var items:[ItemView] = []
-        for index in -2..<(displayCount+2) {
+        let leftMarginCount: Int = canScroll ? -sideMarginCount : 0
+        let rightMarginCount: Int = canScroll ? sideMarginCount : 0
+        for index in leftMarginCount..<(displayCount+rightMarginCount) {
             let item = ItemView(itemSize: itemSize, dotSize: dotSize, index: index)
             items.append(item)
         }
@@ -169,7 +175,7 @@ public class FlexiblePageControl: UIView {
             scrollView.addSubview(items[i])
         }
 
-        let size = CGSize(width: itemSize * CGFloat(displayCount), height: itemSize)
+        let size = CGSize(width: itemSize * CGFloat(displayCount+1), height: itemSize)
         let frame = CGRect(origin: .zero, size: size)
 
         scrollView.frame = frame
@@ -186,34 +192,25 @@ public class FlexiblePageControl: UIView {
     private func setCurrentPage(currentPage: Int, animated: Bool) {
 
         updateDotColor(currentPage: currentPage)
-        
+
         if canScroll {
             updateDotPosition(currentPage: currentPage, animated: animated)
             updateDotSize(currentPage: currentPage, animated: animated)
         }
     }
-    
+
     private func updateDotColor(currentPage: Int) {
-     
-        for index in 0..<(displayCount + 4) {
-            let pageIndex = items[index].index
-            items[index].dotColor = (pageIndex == currentPage) ? currentPageIndicatorTintColor : pageIndicatorTintColor
+
+        items.forEach {
+            $0.dotColor = $0.index == currentPage ? currentPageIndicatorTintColor : pageIndicatorTintColor
         }
     }
-    
+
     private func updateDotPosition(currentPage: Int, animated: Bool) {
 
         let duration = animated ? animateDuration : 0
 
-        if currentPage == 0 {
-            let x = -scrollView.contentInset.left
-            moveScrollViewView(x: x, duration: duration)
-        }
-        else if currentPage == numberOfPages - 1 {
-            let x = scrollView.contentSize.width - scrollView.bounds.width + scrollView.contentInset.right
-            moveScrollViewView(x: x, duration: duration)
-        }
-        else if CGFloat(currentPage) * itemSize <= scrollView.contentOffset.x + itemSize {
+        if CGFloat(currentPage) * itemSize <= scrollView.contentOffset.x + itemSize {
             let x = scrollView.contentOffset.x - itemSize
             moveScrollViewView(x: x, duration: duration)
         }
@@ -280,7 +277,7 @@ public class FlexiblePageControl: UIView {
 
         let duration = animated ? animateDuration : 0
 
-        for index in 0..<(displayCount + 4) {
+        for index in 0..<(displayCount + (sideMarginCount*2)) {
 
             let item = items[index]
 
@@ -289,27 +286,27 @@ public class FlexiblePageControl: UIView {
             if item.index == currentPage {
                 item.state = .Normal
             }
-            // outside of left
+                // outside of left
             else if item.index < 0 {
                 item.state = .None
             }
-            // outside of right
+                // outside of right
             else if item.index > numberOfPages - 1 {
                 item.state = .None
             }
-            // first dot from left
+                // first dot from left
             else if item.frame.minX <= scrollView.contentOffset.x {
                 item.state = .Small
             }
-            // first dot from right
+                // first dot from right
             else if item.frame.maxX >= scrollView.contentOffset.x + scrollView.bounds.width {
                 item.state = .Small
             }
-            // second dot from left
+                // second dot from left
             else if item.frame.minX <= scrollView.contentOffset.x + itemSize {
                 item.state = .Medium
             }
-            // second dot from right
+                // second dot from right
             else if item.frame.maxX >= scrollView.contentOffset.x + scrollView.bounds.width - itemSize {
                 item.state = .Medium
             }
@@ -348,30 +345,30 @@ private class ItemView: UIView {
         }
     }
 
-    var animateDuration: TimeInterval = 0.3
+    var animateDuration: TimeInterval = 0.25
 
     init(itemSize: CGFloat, dotSize: CGFloat, index: Int) {
-        
+
         self.itemSize = itemSize
         self.dotSize = dotSize
         self.index = index
-        
+
         let x = itemSize * CGFloat(index)
         let frame = CGRect(x: x, y: 0, width: itemSize, height: itemSize)
 
         super.init(frame: frame)
-        
+
         backgroundColor = UIColor.clear
-        
+
         dotView.frame.size = CGSize(width: dotSize, height: dotSize)
         dotView.center = CGPoint(x: itemSize/2, y: itemSize/2)
         dotView.backgroundColor = dotColor
         dotView.layer.cornerRadius = dotSize/2
         dotView.layer.masksToBounds = true
-        
+
         addSubview(dotView)
     }
-    
+
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -384,11 +381,11 @@ private class ItemView: UIView {
     private let itemSize: CGFloat
 
     private let dotSize: CGFloat
-    
+
     private func updateDotSize(state: State) {
-        
+
         var _size: CGSize
-        
+
         switch state {
         case .Normal:
             _size = CGSize(width: dotSize, height: dotSize)
